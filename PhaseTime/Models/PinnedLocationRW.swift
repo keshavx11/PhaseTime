@@ -14,7 +14,7 @@ typealias PinnedLocationRW = PinnedLocation
 
 extension PinnedLocationRW {
 
-    func getAllSavedCoordinates() -> Results<PinnedLocation> {
+    class func getAllSavedCoordinates() -> Results<PinnedLocation> {
         let realm = try! Realm()
         let results = realm.objects(PinnedLocation.self)
         return results
@@ -23,7 +23,7 @@ extension PinnedLocationRW {
     func getCopiesIfAny() -> Results<PinnedLocation> {
         let epsilon: Float = 0.00001;
         let predicate = NSPredicate(format: "latitude > %f AND longitude > %f AND latitude < %f AND longitude < %f", self.latitude - epsilon, self.longitude - epsilon, self.latitude + epsilon, self.longitude + epsilon)
-        let results = self.getAllSavedCoordinates().filter(predicate)
+        let results = PinnedLocationRW.getAllSavedCoordinates().filter(predicate)
         return results
     }
     
@@ -56,6 +56,10 @@ extension PinnedLocationRW {
     
     func getLongitudeFloatString() -> String {
         return String(format: "%.5f", self.longitude)
+    }
+    
+    func getCoordinateString() -> String {
+        return self.getLatitudeFloatString() + ", " + self.getLongitudeFloatString()
     }
     
     func getLatitudeCLDegrees() -> CLLocationDegrees {

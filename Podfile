@@ -7,6 +7,5 @@ target 'PhaseTime' do
   pod 'GooglePlaces', '~> 2.7'
   pod 'GooglePlacePicker', '~> 2.7'
   pod 'RealmSwift'
-  pod 'ObjectMapper'
 
 end

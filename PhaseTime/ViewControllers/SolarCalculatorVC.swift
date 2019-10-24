@@ -14,6 +14,11 @@ class SolarCalculatorVC: UIViewController, GMSMapViewDelegate, CLLocationManager
 
     @IBOutlet var mapView: UIView!
     @IBOutlet var navView: UIView!
+    
+    @IBOutlet var sunrise: UILabel!
+    @IBOutlet var sunset: UILabel!
+    @IBOutlet var dateLabel: UILabel!
+    
     @IBOutlet weak var addPinButton: UIButton!
     
     let locationManager = CLLocationManager()
@@ -21,16 +26,23 @@ class SolarCalculatorVC: UIViewController, GMSMapViewDelegate, CLLocationManager
     var currentLocation: PinnedLocation!
     var marker = GMSMarker()
     var map: GMSMapView!
-
+    var selectedDate = Date() {
+        didSet {
+            self.dateLabel.text = selectedDate.getDateString()
+        }
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        self.selectedDate = Date()
+        self.loadMap()
         self.addShadowToNavBar()
         self.setUpLocationManager()
     }
     
     override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
-        self.loadMap()
+        self.map.frame = self.mapView.frame
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -50,17 +62,22 @@ class SolarCalculatorVC: UIViewController, GMSMapViewDelegate, CLLocationManager
         let camera = GMSCameraPosition.camera(withTarget: self.currentLocation.getCoordinates(), zoom: 6.0)
         let mapFrame = CGRect(origin: CGPoint.zero, size: self.mapView.frame.size)
         self.map = GMSMapView.map(withFrame: mapFrame, camera: camera)
-        map.delegate = self
+        self.map.delegate = self
         self.setMarker(atLocation: self.currentLocation)
         self.marker.map = map
         self.mapView.addSubview(map)
     }
     
     func reloadMap(atLocation location: PinnedLocation) {
-        self.currentLocation = location
+        self.updateView(forNewLocation: location)
         let camera = GMSCameraPosition.camera(withTarget: self.currentLocation.getCoordinates(), zoom: 6.0)
-        self.map.camera = camera
+        self.map.moveCamera(GMSCameraUpdate.setCamera(camera))
         self.setMarker(atLocation: self.currentLocation)
+    }
+    
+    func updateView(forNewLocation location: PinnedLocation) {
+        self.currentLocation = location
+        self.setSunTimes(forLocation: location.clLocation)
         if self.currentLocation.isLocationPinned() {
             self.addPinButton.setImage(#imageLiteral(resourceName: "remove"), for: .normal)
         } else {
@@ -68,10 +85,15 @@ class SolarCalculatorVC: UIViewController, GMSMapViewDelegate, CLLocationManager
         }
     }
     
+    func setSunTimes(forLocation location: CLLocation) {
+        self.sunset.text = self.selectedDate.sunset(location)
+        self.sunrise.text = self.selectedDate.sunrise(location)
+    }
+    
     func setMarker(atLocation location: PinnedLocation) {
         marker.position = location.getCoordinates()
-        marker.title = "Sydney"
-        marker.snippet = "Australia"
+        marker.title = location.title
+        marker.snippet = location.snippet
     }
     
     func setUpLocationManager() {
@@ -86,20 +108,22 @@ class SolarCalculatorVC: UIViewController, GMSMapViewDelegate, CLLocationManager
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let locValue: CLLocationCoordinate2D = manager.location?.coordinate else { return }
         self.locationManager.stopUpdatingLocation()
-        let newLoc = PinnedLocation(coordinate: locValue, title: "Sydney", snippet: "Australia")
+        let newLoc = PinnedLocation(coordinate: locValue, title: nil, snippet: nil)
         self.reloadMap(atLocation: newLoc)
     }
 
     func updateLocationoordinates(coordinates:CLLocationCoordinate2D) {
         CATransaction.begin()
         CATransaction.setAnimationDuration(0.01)
-        self.marker.position =  coordinates
+        self.marker.position = coordinates
         CATransaction.commit()
     }
     
     // Camera change Position this methods will call every time
     func mapView(_ mapView: GMSMapView, didChange position: GMSCameraPosition) {
         let destinationLocation = CLLocation(latitude: position.target.latitude,  longitude: position.target.longitude)
+        let newLoc = PinnedLocation(coordinate: position.target, title: nil, snippet: nil)
+        self.updateView(forNewLocation: newLoc)
         let destinationCoordinate = destinationLocation.coordinate
         updateLocationoordinates(coordinates: destinationCoordinate)
     }
@@ -123,9 +147,36 @@ extension SolarCalculatorVC {
     }
     
     @IBAction func showAllPinsClicked() {
-        
+        let vc = SavedPinPickerVC.getInstance()
+        vc.didSelectLocation = { (location) in
+            self.reloadMap(atLocation: location)
+        }
+        self.present(vc, animated: true, completion: nil)
     }
     
+    @IBAction func todayDate() {
+        self.selectedDate = Date()
+        let location = self.currentLocation.clLocation
+        self.setSunTimes(forLocation: location)
+    }
+    
+    @IBAction func backDate() {
+        let dateComponent = DateComponents(day: -1)
+        if let newDate = Calendar.current.date(byAdding: dateComponent, to: self.selectedDate) {
+            self.selectedDate = newDate
+            let location = self.currentLocation.clLocation
+            self.setSunTimes(forLocation: location)
+        }
+    }
+    
+    @IBAction func forwardDate() {
+        let dateComponent = DateComponents(day: 1)
+        if let newDate = Calendar.current.date(byAdding: dateComponent, to: self.selectedDate) {
+            self.selectedDate = newDate
+            let location = self.currentLocation.clLocation
+            self.setSunTimes(forLocation: location)
+        }
+    }
 }
 
 extension SolarCalculatorVC: UISearchBarDelegate, GMSAutocompleteViewControllerDelegate {

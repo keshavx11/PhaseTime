@@ -18,6 +18,18 @@ class PinnedLocation: Object {
     @objc dynamic var title: String?
     @objc dynamic var snippet: String?
     
+    var clLocation: CLLocation {
+        get {
+            CLLocation(latitude: CLLocationDegrees(self.latitude), longitude: CLLocationDegrees(self.longitude))
+        }
+    }
+    
+    var name: String {
+        get {
+            return self.title ?? self.getCoordinateString()
+        }
+    }
+    
     init(coordinate: CLLocationCoordinate2D, title: String?, snippet: String?) {
         super.init()
         self.latitude = Float(coordinate.latitude)
